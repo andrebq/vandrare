@@ -1,0 +1,2 @@
+# copy this file and rename it to LocalEnv.mk to override local configurations
+# LocalEnv.mk is not tracked by git
