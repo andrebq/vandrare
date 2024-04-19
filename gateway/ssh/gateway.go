@@ -18,6 +18,7 @@ type (
 		l         sync.Mutex
 		accepting map[string]*loadbalancer.LB[connData]
 		cleanup   map[*gossh.ServerConn]func()
+		kdb       KeyDB
 	}
 
 	connData struct {
@@ -31,10 +32,16 @@ type (
 			port uint32
 		}
 	}
+
+	KeyDB interface {
+		AuthN(ctx context.Context, key ssh.PublicKey) error
+		AuthZ(ctx context.Context, key ssh.PublicKey, action, resource string) error
+	}
 )
 
-func NewGateway() *Gateway {
+func NewGateway(keydb KeyDB) *Gateway {
 	return &Gateway{
+		kdb:       keydb,
 		accepting: make(map[string]*loadbalancer.LB[connData]),
 		cleanup:   make(map[*gossh.ServerConn]func()),
 	}
@@ -52,6 +59,21 @@ func (g *Gateway) Run(ctx context.Context, bind string) error {
 	srv.RequestHandlers = map[string]ssh.RequestHandler{
 		"tcpip-forward":        g.handleTCPForward,
 		"cancel-tcpip-forward": g.handleCancelTCPForward,
+	}
+
+	srv.PasswordHandler = func(ctx ssh.Context, password string) bool { return false }
+	srv.KeyboardInteractiveHandler = func(ctx ssh.Context, challenger gossh.KeyboardInteractiveChallenge) bool { return false }
+	srv.PublicKeyHandler = func(ctx ssh.Context, key ssh.PublicKey) bool {
+		if key.Type() != "ssh-ed25519" {
+			return false
+		}
+
+		err := g.kdb.AuthN(ctx, key)
+		if err != nil {
+			slog.Debug("Authentication failed", "err", err)
+			return false
+		}
+		return true
 	}
 
 	srv.Handler = func(s ssh.Session) {

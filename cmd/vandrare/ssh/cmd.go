@@ -25,7 +25,7 @@ func gatewayCmd() *cli.Command {
 			flagutil.String(&bind, "bind-addr", []string{"b"}, "Address to listen for incoming requests", false),
 		},
 		Action: func(ctx *cli.Context) error {
-			return ssh.NewGateway().Run(ctx.Context, bind)
+			return ssh.NewGateway(ssh.AllowAnyKey()).Run(ctx.Context, bind)
 		},
 	}
 }
