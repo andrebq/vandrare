@@ -55,7 +55,7 @@ func initDB(db *sql.DB) error {
 		return err
 	}
 	for _, m := range migrations {
-		if m.version.Less(lastVersion) {
+		if m.version.Less(lastVersion) || (m.version == lastVersion) {
 			continue
 		}
 		err = applyMigration(db, m)

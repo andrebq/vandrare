@@ -4,6 +4,7 @@ go 1.21.4
 
 require (
 	github.com/Masterminds/semver/v3 v3.2.1
+	github.com/d5/tengo/v2 v2.17.0
 	github.com/gliderlabs/ssh v0.3.7
 	github.com/urfave/cli/v2 v2.27.1
 	golang.org/x/crypto v0.17.0

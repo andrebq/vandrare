@@ -1,6 +1,7 @@
 package flagutil
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -10,20 +11,23 @@ import (
 var unsafeFlagName = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 var dedupUnder = regexp.MustCompile(`__+`)
 
-func computeEnvVar(name string) string {
-	return strings.ToUpper(
+func computeEnvVar(envPrefix, name string) []string {
+	if envPrefix == "" {
+		return nil
+	}
+	return []string{fmt.Sprintf("%v_%v", envPrefix, strings.ToUpper(
 		dedupUnder.ReplaceAllString(
 			unsafeFlagName.ReplaceAllString(name, "_"),
-			"_"))
+			"_")))}
 }
 
-func String(dest *string, longName string, alias []string, usage string, required bool) *cli.StringFlag {
+func String(dest *string, longName string, alias []string, envPrefix string, usage string, required bool) *cli.StringFlag {
 	return &cli.StringFlag{
 		Destination: dest,
 		Value:       *dest,
 		Name:        longName,
 		Aliases:     alias,
 		Required:    required,
-		EnvVars:     []string{computeEnvVar(longName)},
+		EnvVars:     computeEnvVar(envPrefix, longName),
 	}
 }

@@ -2,6 +2,7 @@
 
 include Environment.mk
 include Tools.mk
+include Run.mk
 
 protogen: check-tools-protoc check-tools-protoc-gen-go
 

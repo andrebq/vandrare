@@ -64,7 +64,6 @@ func (kv *kvops) SetBytes(ctx context.Context, key string, buf []byte) {
 	if kv.err == nil {
 		kv.cached[key] = append([]byte(nil), buf...)
 	}
-	return
 }
 
 func (kv *kvops) Err() error {

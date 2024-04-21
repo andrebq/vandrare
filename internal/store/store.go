@@ -69,7 +69,7 @@ func Open(dir string) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to create database directory: %w", err)
 	}
-	db, err := sql.Open("sqlite3", mainfile)
+	db, err := sql.Open("sqlite", mainfile)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create database file: %w", err)
 	}
