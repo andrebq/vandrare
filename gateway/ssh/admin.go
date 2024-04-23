@@ -1,13 +1,11 @@
 package ssh
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/andrebq/vandrare/internal/appshell"
@@ -26,10 +24,12 @@ func (g *Gateway) isAdminSession(s ssh.Session) bool {
 }
 
 func (g *Gateway) runAdminSession(s ssh.Session) {
+	exitCode := 0
 	defer func() {
-		s.Close()
+		s.Exit(exitCode)
 		s.Context().Value(ssh.ContextKeyConn).(*gossh.ServerConn).Close()
 	}()
+	fmt.Fprintf(s, "Starting session: %v\n", time.Now())
 
 	level := slog.LevelInfo
 	if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
@@ -41,26 +41,20 @@ func (g *Gateway) runAdminSession(s ssh.Session) {
 
 	echoMod := appshell.NewModule("echo")
 	echoMod.AddFuncRaw("print", appshell.DynFuncNR0(func(args ...any) error {
-		return json.NewEncoder(s).Encode(args)
+		strs := make([]string, len(args))
+		for i, v := range args {
+			strs[i] = fmt.Sprintf("%v", v)
+		}
+		return json.NewEncoder(s).Encode(strs)
 	}))
 	sh.AddModules(echoMod, g.keyManagementModule(s.Context()))
 
-	sc := bufio.NewScanner(s)
-	acc := strings.Builder{}
-	for sc.Scan() {
-		fmt.Fprintln(&acc, sc.Text())
-		if sh.ValidScript(acc.String()) {
-			output, err := sh.Eval(s.Context(), acc.String())
-			if err != nil {
-				log.Error("Error processing script", "err", err)
-				return
-			}
-			acc.Reset()
-			if output != nil {
-				json.NewEncoder(s).Encode(output)
-			}
-		}
+	err := sh.EvalInteractive(s.Context(), s)
+	if err != nil {
+		log.Error("Error while processing code", "error", err)
+		exitCode = 1
 	}
+	fmt.Fprintln(s)
 }
 
 func (g *Gateway) keyManagementModule(ctx context.Context) *appshell.Module {

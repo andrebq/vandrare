@@ -3,6 +3,7 @@ package ssh
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"sync"
@@ -99,6 +100,8 @@ func (g *Gateway) Run(ctx context.Context, bind string) error {
 			g.runAdminSession(s)
 			return
 		}
+		fmt.Fprintf(s, "Successful authentication, but your credentials do not allow interactive access\n")
+		s.Exit(0)
 		s.Close()
 	}
 	err := srv.ListenAndServe()

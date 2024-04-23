@@ -1,8 +1,11 @@
 package appshell
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"io"
+	"strings"
 
 	"github.com/d5/tengo/v2"
 	"github.com/d5/tengo/v2/parser"
@@ -29,6 +32,38 @@ func (s *Shell) AddModules(m ...*Module) {
 	for _, v := range m {
 		s.modules.Add(v.name, v.tengoModule)
 	}
+}
+
+func (s *Shell) EvalInteractive(ctx context.Context, stdin io.Reader) error {
+	sc := bufio.NewScanner(stdin)
+	acc := &strings.Builder{}
+
+	oldVars := []*tengo.Variable{}
+
+	for sc.Scan() {
+		fmt.Fprintln(acc, sc.Text())
+		if s.ValidScript(acc.String()) {
+
+			sc := tengo.NewScript([]byte(acc.String()))
+			sc.EnableFileImport(false)
+			sc.SetImports(s.modules)
+
+			acc.Reset()
+			for _, v := range oldVars {
+				sc.Add(v.Name(), v.Object())
+			}
+			state, err := sc.RunContext(ctx)
+			if err != nil {
+				return err
+			}
+			oldVars = append(oldVars[:0], state.GetAll()...)
+		}
+	}
+	ret := make(map[string]any)
+	for _, v := range oldVars {
+		ret[v.Name()] = v.Value()
+	}
+	return nil
 }
 
 func (s *Shell) Eval(ctx context.Context, code string) (any, error) {
