@@ -1,2 +1,6 @@
 # copy this file and rename it to LocalEnv.mk to override local configurations
 # LocalEnv.mk is not tracked by git
+
+adminKey?=<path to your ssh pubkey>
+keyStoreDir?=$(localfiles)/data/kdb
+GATEWAY_SSH_CA_SEED=<32 byte private ed25519 seed>
