@@ -9,6 +9,9 @@ import (
 )
 
 func (g *Gateway) handleDirectTCPIP(srv *ssh.Server, conn *gossh.ServerConn, newChan gossh.NewChannel, ctx ssh.Context) {
+	if !g.ensurePubkeyAuth(ctx) {
+		return
+	}
 	defer func() {
 		if conn != nil {
 			conn.Close()

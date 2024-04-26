@@ -14,6 +14,9 @@ import (
 )
 
 func (g *Gateway) handleTCPForward(sshctx ssh.Context, srv *ssh.Server, req *gossh.Request) (bool, []byte) {
+	if !g.ensurePubkeyAuth(sshctx) {
+		return false, nil
+	}
 	// register a new listener for a given endpoint
 	// wait for new connections from the load balancer
 	// handle each connection in a separate thread
@@ -69,6 +72,9 @@ func (g *Gateway) registerEndpoint(sshctx ssh.Context, req *gossh.Request) (cont
 }
 
 func (g *Gateway) handleCancelTCPForward(ctx ssh.Context, srv *ssh.Server, req *gossh.Request) (bool, []byte) {
+	if !g.ensurePubkeyAuth(ctx) {
+		return false, nil
+	}
 	var reqPayload remoteForwardCancelRequest
 	if err := gossh.Unmarshal(req.Payload, &reqPayload); err != nil {
 		slog.Debug("Erro while decoding remote forward cancel", "err", err)

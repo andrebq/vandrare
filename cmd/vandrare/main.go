@@ -19,6 +19,4 @@ func main() {
 		slog.Error("Application failed", "err", err)
 		log.Fatal("abort")
 	}
-
-	<-ctx.Done()
 }
