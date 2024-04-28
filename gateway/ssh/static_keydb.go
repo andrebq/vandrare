@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sort"
 	"time"
 
 	"github.com/andrebq/vandrare/internal/store"
@@ -14,8 +15,6 @@ import (
 )
 
 type (
-	allowAll struct{}
-
 	DynKDB struct {
 		Store *store.Store
 	}
@@ -25,6 +24,16 @@ type (
 		ValidFrom    time.Time
 		AllowedHosts []string
 		Description  string
+	}
+
+	KeyPermissions struct {
+		Entries []Permission
+	}
+
+	Permission struct {
+		Operation string
+		Resource  string
+		Action    string
 	}
 )
 
@@ -52,13 +61,63 @@ func (d *DynKDB) RegisterKey(ctx context.Context, key ssh.PublicKey, validFrom, 
 	return ops.Commit()
 }
 
+func (d *DynKDB) SetPermission(ctx context.Context, key ssh.PublicKey, operation, resource, action string) error {
+	lookupKey := d.computeKeyPermissionLookup(key)
+	ops := d.Store.Ops(false)
+	defer ops.Close()
+
+	kv := ops.KV()
+	permissions := KeyPermissions{}
+	err := store.GetJSON(ctx, &permissions, kv, lookupKey)
+	if store.IsNotFound(err) {
+		err = nil
+	} else if err != nil {
+		return err
+	}
+	foundIdx := -1
+	for i, perm := range permissions.Entries {
+		if perm.Operation == operation && perm.Resource == resource {
+			if action == "deny" {
+				permissions.Entries[i] = Permission{}
+				foundIdx = i
+				break
+			}
+		}
+	}
+	if foundIdx == -1 && action != "deny" {
+		permissions.Entries = append(permissions.Entries, Permission{
+			Action:    action,
+			Operation: operation,
+			Resource:  resource,
+		})
+	} else if foundIdx != -1 {
+		switch {
+		case foundIdx == len(permissions.Entries)-1:
+			permissions.Entries = permissions.Entries[:foundIdx-1]
+		case foundIdx == 0:
+			permissions.Entries = permissions.Entries[1:]
+		default:
+			permissions.Entries[foundIdx] = permissions.Entries[len(permissions.Entries)-1]
+			permissions.Entries = permissions.Entries[:len(permissions.Entries)-1]
+		}
+		sort.Slice(permissions.Entries, func(i, j int) bool {
+			pi, pj := permissions.Entries[i], permissions.Entries[j]
+			return pi.Resource < pj.Resource &&
+				pi.Operation < pj.Operation &&
+				pi.Action < pj.Action
+		})
+	}
+	ops.Fail(store.PutJSON(ctx, kv, lookupKey, permissions))
+	return ops.Commit()
+}
+
 func (d *DynKDB) AuthN(ctx context.Context, key ssh.PublicKey) error {
 	_, err := d.lookupAndVerifyConfig(ctx, key)
 	return err
 }
 
-func (d *DynKDB) AuthZ(ctx context.Context, key ssh.PublicKey, action, resource string) error {
-	if action != "expose-endpoint" {
+func (d *DynKDB) AuthZ(ctx context.Context, key ssh.PublicKey, operation, resource string) error {
+	if operation != "expose-endpoint" {
 		// for now, this is the only action, other than admin, that can run
 		// and admin sessions are authorized by a different key
 		return errNotAuthorized
@@ -98,4 +157,8 @@ func (d *DynKDB) lookupAndVerifyConfig(ctx context.Context, key ssh.PublicKey) (
 func (d *DynKDB) computeKeyLookup(key ssh.PublicKey) string {
 	sig := gossh.FingerprintSHA256(key)
 	return fmt.Sprintf("kdb:key:%v", sig)
+}
+
+func (d *DynKDB) computeKeyPermissionLookup(key ssh.PublicKey) string {
+	return fmt.Sprintf("kdb:key-perm:%v", gossh.FingerprintSHA256(key))
 }

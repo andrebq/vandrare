@@ -17,6 +17,8 @@ pubkey := "${pub_key}"
 keyset.put(pubkey, "-1s", "8766h" /* one year */, "server.example.com")
 echo.print("new key added to database", pubkey)
 
+keyset.addPermission(pubkey, "expose", "server.example.com:22", "allow")
+
 EOF
 } | {
     ssh -o LogLevel=QUIET ${jump_server} -- vandrare gateway ssh admin || echo "Fail!"

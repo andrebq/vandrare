@@ -1,6 +1,8 @@
-vandrare?=../../dist/vandrare
-endpoint?=http://localhost:8222
+include ../sample-data/Commons.mk
+
 run:
+	cd ../sample-data && $(MAKE) gen-all
+
 	$(vandrare) ssh config \
 		--endpoint $(endpoint) \
 		--allow-http \
@@ -9,7 +11,7 @@ run:
 				--jump-server '[127.0.0.1]:2222' \
 				--include-jump \
 				--gateway-pubkey $(PWD)/ca.pub \
-				--host server1.example.com | tee ./server1.example.com_sshconf
+				--host server2.example.com | tee ./server2.example.com_sshconf
 	
 	cat $(PWD)/ca.pub
 	curl http://localhost:8222/gateway/ssh/certificates/self > host-cert.pub

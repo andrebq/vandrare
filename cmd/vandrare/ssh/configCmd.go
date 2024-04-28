@@ -42,6 +42,38 @@ func configCmd() *cli.Command {
 		},
 		Subcommands: []*cli.Command{
 			clientConfigCmd(&baseURL, &token),
+			jumpserverConfigCmd(&baseURL, &token),
+		},
+	}
+}
+
+func jumpserverConfigCmd(base **url.URL, token *string) *cli.Command {
+	envPrefix := fmt.Sprintf("%v_%v", envPrefix, "CONFIG_JUMP")
+	var jumpserver, jumpalias string
+	var identityFile string = commonpaths.DefaultSSHPrivateKey()
+	var hostCABase string = commonpaths.DefaultCAPubKey("vandrare-jump")
+	return &cli.Command{
+		Name:  "jump",
+		Usage: "Creates a client config file which allows direct access to vandrare gateway/jump-server",
+		Flags: []cli.Flag{
+			flagutil.String(&jumpalias, "alias", nil, envPrefix, "SSH alias of the jump server", true),
+			flagutil.String(&jumpserver, "jump-server", nil, envPrefix, "Proper address of the jump-server, read only if include-jump is true", false),
+			flagutil.String(&identityFile, "identity-file", []string{"identity"}, envPrefix, "Identity file with private key", false),
+			flagutil.String(&hostCABase, "gateway-pubkey", nil, envPrefix, "Path where the gateway CA pubkey will be stored", false),
+		},
+		Action: func(ctx *cli.Context) error {
+			if jumpserver == "" {
+				jumpserver = net.JoinHostPort((*base).Hostname(), "2222")
+				slog.Warn("Missing flag jump-server, using gateway instead", "jump-server", jumpserver)
+			}
+			return gateway.GenerateJumpConfig(ctx.Context,
+				ctx.App.Writer,
+				*base,
+				gateway.Token(*token),
+				gateway.JumpAlias(jumpalias),
+				gateway.IdentityPath(identityFile),
+				gateway.CAPubkeyPath(hostCABase),
+				jumpserver)
 		},
 	}
 }
@@ -55,7 +87,7 @@ func clientConfigCmd(base **url.URL, token *string) *cli.Command {
 	var includeJump bool
 	return &cli.Command{
 		Name:  "client",
-		Usage: "Creates a client config file which uses the give gateway to access a specific host:port",
+		Usage: "Creates a client config file which gives access to host:port, via a given vandrare gateway/jumpserver",
 		Flags: []cli.Flag{
 			flagutil.String(&jumpalias, "jump-alias", nil, envPrefix, "SSH alias of the jump server", true),
 			flagutil.Bool(&includeJump, "include-jump", nil, envPrefix, "Include the jumpserver definition in the generated config, uses either jump-server or gateway host on port 2222 as address", false),

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/andrebq/vandrare/internal/appshell"
@@ -78,6 +79,24 @@ func (g *Gateway) keyManagementModule(ctx context.Context) *appshell.Module {
 		}
 		err = g.kdb.RegisterKey(ctx, key, time.Now().Add(validFromDur), time.Now().Add(expiresInDur), []string{hostname})
 		slog.Info("Key registration", "key", string(gossh.MarshalAuthorizedKey(key)), "hostname", hostname, "err", err)
+		return err
+	}))
+
+	mod.AddFuncRaw("addPermission", appshell.FuncNR0(func(args ...string) error {
+		key, _, _, _, err := ssh.ParseAuthorizedKey([]byte(args[0]))
+		if err != nil {
+			return err
+		}
+		operation := args[1]
+		resource := args[2]
+		action := strings.ToLower(args[3])
+		switch action {
+		case "allow", "deny":
+		default:
+			return fmt.Errorf("invalid action: %v", action)
+		}
+		err = g.kdb.SetPermission(ctx, key, operation, resource, action)
+		slog.Info("Key authorization", "key", string(gossh.MarshalAuthorizedKey(key)), "operation", operation, "resource", resource, "action", action, "err", err)
 		return err
 	}))
 	return mod

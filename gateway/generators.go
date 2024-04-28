@@ -89,11 +89,6 @@ func GenerateClientConfig(ctx context.Context, output io.Writer, gateway *url.UR
 		Hostname:   host,
 		Alias:      host,
 	}
-	ref := gateway.ResolveReference(gatewayKnownHostsPath)
-	err := downloadCAFile(ctx, ref, token, cakey)
-	if err != nil {
-		return err
-	}
 	return clientConfigTemplates.ExecuteTemplate(output, "host", data)
 }
 
