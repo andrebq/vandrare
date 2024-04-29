@@ -35,7 +35,41 @@ type (
 		Resource  string
 		Action    string
 	}
+
+	KeyRegistration struct {
+		PublicKey   SSHPubKey `json:"pubkey"`
+		UseCases    []string  `json:"useCase"`
+		Hosts       []string  `json:"hosts"`
+		Description string    `json:"description"`
+		Owner       string    `json:"owner"`
+	}
+
+	SSHPubKey struct {
+		ssh.PublicKey
+	}
 )
+
+func (s *SSHPubKey) MarshalJSON() ([]byte, error) {
+	if s.PublicKey == nil {
+		return nil, nil
+	}
+	return json.Marshal(string(gossh.MarshalAuthorizedKey(*s)))
+}
+
+func (s *SSHPubKey) UnmarshalJSON(buf []byte) error {
+	s.PublicKey = nil
+	var str string
+	err := json.Unmarshal(buf, &str)
+	if err != nil {
+		return err
+	}
+	key, _, _, _, err := gossh.ParseAuthorizedKey([]byte(str))
+	if err != nil {
+		return err
+	}
+	s.PublicKey = key
+	return nil
+}
 
 var (
 	errNotAuthorized = errors.New("ssh: not authorized")
@@ -134,6 +168,26 @@ func (d *DynKDB) AuthZ(ctx context.Context, key ssh.PublicKey, operation, resour
 	return errNotAuthorized
 }
 
+func (d *DynKDB) RequestKeyRegistration(ctx context.Context, key KeyRegistration) (KeyRegistration, error) {
+	regLookup := d.computeKeyLookupRegistration(key.PublicKey)
+	ops := d.Store.Ops(false)
+	defer ops.Close()
+	kv := ops.KV()
+
+	var oldreg KeyRegistration
+
+	err := store.GetJSON(ctx, &oldreg, kv, regLookup)
+	if err == nil {
+		oldLookup := d.computeKeyLookupRegistration(oldreg.PublicKey.PublicKey)
+		if oldLookup != regLookup {
+			slog.Error("Key registration on database does not match its body", "lookupKey", regLookup, "bodyKey", oldLookup)
+			return key, errors.New("unexpected state")
+		}
+	}
+	ops.Fail(store.PutJSON(ctx, kv, regLookup, key))
+	return key, ops.Commit()
+}
+
 func (d *DynKDB) lookupAndVerifyConfig(ctx context.Context, key ssh.PublicKey) (KeyConfig, error) {
 	lookupKey := d.computeKeyLookup(key)
 	ops := d.Store.Ops(false)
@@ -161,4 +215,8 @@ func (d *DynKDB) computeKeyLookup(key ssh.PublicKey) string {
 
 func (d *DynKDB) computeKeyPermissionLookup(key ssh.PublicKey) string {
 	return fmt.Sprintf("kdb:key-perm:%v", gossh.FingerprintSHA256(key))
+}
+
+func (d *DynKDB) computeKeyLookupRegistration(key ssh.PublicKey) string {
+	return fmt.Sprintf("kdb:key-reg:%v", gossh.FingerprintSHA256(key))
 }

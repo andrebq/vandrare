@@ -13,9 +13,9 @@ run-jumpserver: $(PWD)/jumpserver_config
 	ssh -F $(PWD)/jumpserver_config jumpserver -- $(command)
 
 clean:
-	rm -v $(PWD)/server1_*
-	rm -v $(PWD)/ca.pub
-	rm -v $(PWD)/*_config
+	rm -fv $(PWD)/server1_*
+	rm -fv $(PWD)/ca.pub
+	rm -fv $(PWD)/*_config
 
 $(PWD)/jumpserver_config:
 	$(vandrare) ssh config \

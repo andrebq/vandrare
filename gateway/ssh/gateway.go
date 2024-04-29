@@ -26,6 +26,7 @@ type (
 		accepting map[string]*loadbalancer.LB[connData]
 		cleanup   map[*gossh.ServerConn]func()
 		kdb       *DynKDB
+		tdb       *TokenDB
 		adminKey  ssh.PublicKey
 		host      struct {
 			key  ssh.Signer

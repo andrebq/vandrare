@@ -14,6 +14,13 @@ func (o *ops) KV() KVOps {
 	}
 }
 
+func (o *ops) Tokens() TokenOps {
+	return &tokenOps{
+		clock: o.clock,
+		sqler: o,
+	}
+}
+
 func (o *ops) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
 	return o.tx.ExecContext(ctx, query, args...)
 }

@@ -40,6 +40,7 @@ type (
 		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 		QueryRowContext(context.Context, string, ...any) *sql.Row
 		KV() KVOps
+		Tokens() TokenOps
 		Commit() error
 		Rollback() error
 		Close() error

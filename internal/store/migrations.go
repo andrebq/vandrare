@@ -5,9 +5,11 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"embed"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"path"
 	"sort"
 	"strings"
@@ -33,6 +35,10 @@ const (
 	seedFile = "migrations/0.0.0-seed-migration.sql"
 )
 
+func (mf *migrationFile) String() string {
+	return fmt.Sprintf("%v@%v checksum: %v", mf.name, mf.version, base64.RawURLEncoding.EncodeToString(mf.checksum[:]))
+}
+
 func initDB(db *sql.DB) error {
 	if err := seedMigrations(db); err != nil {
 		return err
@@ -47,13 +53,14 @@ func initDB(db *sql.DB) error {
 	})
 
 	var lastVersion version
-	err = db.QueryRow("select ver_major, ver_minor, ver_patch from t_migrations order by 1, 2, 3 limit 1").Scan(&lastVersion[0], &lastVersion[1], &lastVersion[2])
+	err = db.QueryRow("select ver_major, ver_minor, ver_patch from t_migrations order by 1 desc, 2 desc, 3 desc limit 1").Scan(&lastVersion[0], &lastVersion[1], &lastVersion[2])
 	if errors.Is(err, sql.ErrNoRows) {
 		err = nil
 	}
 	if err != nil {
 		return err
 	}
+	slog.Info("Migration diff", "lastApplied", lastVersion, "lastFound", migrations[len(migrations)-1].version)
 	for _, m := range migrations {
 		if m.version.Less(lastVersion) || (m.version == lastVersion) {
 			continue
@@ -99,9 +106,9 @@ func inTX(db *sql.DB, txn func(tx *sql.Tx) error) error {
 }
 
 func (v version) Less(other version) bool {
-	return v[0] < other[0] &&
-		v[1] < other[1] &&
-		v[2] < other[2]
+	return v[0] < other[0] ||
+		(v[0] == other[0] && v[1] < other[1]) ||
+		(v[0] == other[0] && v[1] == other[1] && v[2] < other[2])
 }
 
 func loadMigrations() ([]migrationFile, error) {
