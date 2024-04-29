@@ -2,7 +2,6 @@ package ssh
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -30,7 +29,7 @@ func (g *Gateway) runAdminSession(s ssh.Session) {
 		s.Exit(exitCode)
 		s.Context().Value(ssh.ContextKeyConn).(*gossh.ServerConn).Close()
 	}()
-	fmt.Fprintf(s, "Starting session: %v\n", time.Now())
+	fmt.Fprintf(s.Stderr(), "Starting session: %v\n", time.Now())
 
 	level := slog.LevelInfo
 	if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
@@ -40,14 +39,7 @@ func (g *Gateway) runAdminSession(s ssh.Session) {
 
 	sh := appshell.New(true)
 
-	echoMod := appshell.NewModule("echo")
-	echoMod.AddFuncRaw("print", appshell.DynFuncNR0(func(args ...any) error {
-		strs := make([]string, len(args))
-		for i, v := range args {
-			strs[i] = fmt.Sprintf("%v", v)
-		}
-		return json.NewEncoder(s).Encode(strs)
-	}))
+	echoMod := appshell.EchoModule(s, "echo")
 	sh.AddModules(echoMod, g.keyManagementModule(s.Context()), g.tokenManagement(s.Context()))
 
 	err := sh.EvalInteractive(s.Context(), s)

@@ -15,17 +15,22 @@ echo := import("echo")
 keyset := import("keyset")
 pubkey := "${pub_key}"
 keyset.put(pubkey, "-1s", "8766h" /* one year */, "server.example.com")
-echo.print("new key added to database", pubkey)
 
 keyset.addPermission(pubkey, "expose", "server.example.com:22", "allow")
 
 tokenset := import("tokenset")
 token := tokenset.issue("server1", "Server 1 - API Token", "8766h")
-echo.print("new token", token)
+echo.printJSON({
+    pubkey: pubkey,
+    apiToken: token
+})
 
 EOF
 } | {
-    ssh -o LogLevel=QUIET ${jump_server} -- vandrare gateway ssh admin || echo "Fail!"
+    {
+        ssh -o LogLevel=QUIET ${jump_server} -- vandrare gateway ssh admin | tee output.json
+        jq < output.json
+    } || echo "Fail!"
 }
 
 ssh -o LogLevel=QUIET ${jump_server} -i "${priv_key_file}" -- whoami
