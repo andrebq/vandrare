@@ -104,7 +104,7 @@ func downloadCAFile(ctx context.Context, url *url.URL, token Token, cafile CAPub
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected response from vandrare gatewayt: %v", res.StatusCode)
+		return fmt.Errorf("unexpected response from vandrare gateway: %v", res.StatusCode)
 	}
 	return copyToFile(string(cafile), res.Body)
 }

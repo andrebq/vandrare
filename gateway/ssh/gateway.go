@@ -88,13 +88,14 @@ func genCASigner(key CAKey) (ssh.Signer, error) {
 	return signerkey, nil
 }
 
-func NewGateway(keydb *DynKDB, adminKey ssh.PublicKey, cakey CAKey) (*Gateway, error) {
+func NewGateway(keydb *DynKDB, tkdb *TokenDB, adminKey ssh.PublicKey, cakey CAKey) (*Gateway, error) {
 	casigner, err := genCASigner(cakey)
 	if err != nil {
 		return nil, err
 	}
 	g := &Gateway{
 		kdb:       keydb,
+		tdb:       tkdb,
 		accepting: make(map[string]*loadbalancer.LB[connData]),
 		cleanup:   make(map[*gossh.ServerConn]func()),
 

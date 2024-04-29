@@ -48,11 +48,16 @@ func (o *ops) Commit() error {
 }
 
 func (o *ops) Rollback() error {
-	if o.err != nil {
+	if o.err == sql.ErrTxDone {
 		return o.err
 	}
 	if o.parent != nil {
 		return o.parent.Rollback()
+	}
+	if o.err != nil {
+		// rollback without hiding the underlying error
+		o.tx.Rollback()
+		return o.err
 	}
 	o.err = o.tx.Rollback()
 	if o.err == nil {

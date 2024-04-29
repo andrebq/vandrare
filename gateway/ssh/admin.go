@@ -48,7 +48,7 @@ func (g *Gateway) runAdminSession(s ssh.Session) {
 		}
 		return json.NewEncoder(s).Encode(strs)
 	}))
-	sh.AddModules(echoMod, g.keyManagementModule(s.Context()))
+	sh.AddModules(echoMod, g.keyManagementModule(s.Context()), g.tokenManagement(s.Context()))
 
 	err := sh.EvalInteractive(s.Context(), s)
 	if err != nil {
@@ -56,6 +56,39 @@ func (g *Gateway) runAdminSession(s ssh.Session) {
 		exitCode = 1
 	}
 	fmt.Fprintln(s)
+}
+
+func (g *Gateway) tokenManagement(ctx context.Context) *appshell.Module {
+	mod := appshell.NewModule("tokenset")
+	mod.AddFuncRaw("issue", appshell.FuncNR1(func(args ...string) (string, error) {
+		owner := args[0]
+		description := args[1]
+		var err error
+		ttl, err := time.ParseDuration(args[2])
+		if err != nil {
+			return "", err
+		} else if ttl <= 0 {
+			return "", errors.New("TTL must be positive, for lifetime access use issueLifetime")
+		}
+		token, err := g.tdb.Issue(ctx, owner, description, ttl)
+		if err != nil {
+			return "", err
+		}
+		return token, nil
+	}))
+	mod.AddFuncRaw("issueLifetime", appshell.FuncNR1(func(args ...string) (string, error) {
+		owner := args[0]
+		description := args[1]
+		if len(args) != 2 {
+			return "", errors.New("lifetime expects only two arguments")
+		}
+		token, err := g.tdb.Issue(ctx, owner, description, -1)
+		if err != nil {
+			return "", err
+		}
+		return token, nil
+	}))
+	return mod
 }
 
 func (g *Gateway) keyManagementModule(ctx context.Context) *appshell.Module {

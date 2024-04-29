@@ -19,6 +19,10 @@ echo.print("new key added to database", pubkey)
 
 keyset.addPermission(pubkey, "expose", "server.example.com:22", "allow")
 
+tokenset := import("tokenset")
+token := tokenset.issue("server1", "Server 1 - API Token", "8766h")
+echo.print("new token", token)
+
 EOF
 } | {
     ssh -o LogLevel=QUIET ${jump_server} -- vandrare gateway ssh admin || echo "Fail!"

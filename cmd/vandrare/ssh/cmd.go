@@ -68,7 +68,10 @@ func gatewayCmd() *cli.Command {
 			if err != nil {
 				return err
 			}
-			gateway, err := ssh.NewGateway(&ssh.DynKDB{Store: kdbStore}, key, ssh.GenerateCAKey(buf))
+			gateway, err := ssh.NewGateway(
+				&ssh.DynKDB{Store: kdbStore},
+				&ssh.TokenDB{Store: *kdbStore},
+				key, ssh.GenerateCAKey(buf))
 			if err != nil {
 				return err
 			}
