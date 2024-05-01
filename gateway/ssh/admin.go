@@ -80,6 +80,18 @@ func (g *Gateway) tokenManagement(ctx context.Context) *appshell.Module {
 		}
 		return token, nil
 	}))
+	mod.AddFuncRaw("listActive", appshell.FuncNR1Cast(func(args ...string) ([]TokenInfo, error) {
+		owner := args[0]
+		tokens, err := g.tdb.ListActive(ctx, owner)
+		if err != nil {
+			return nil, err
+		}
+		return tokens, nil
+	}, appshell.FromInterfaceSlice[TokenInfo, []TokenInfo](appshell.ToFlatMap[TokenInfo]())))
+	mod.AddFuncRaw("revoke", appshell.FuncNR0(func(args ...string) error {
+		id := args[0]
+		return g.tdb.Revoke(ctx, id)
+	}))
 	return mod
 }
 

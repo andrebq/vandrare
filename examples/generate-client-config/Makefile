@@ -1,4 +1,4 @@
-include ../sample-data/Commons.mk
+include ../Commons.mk
 
 run:
 	cd ../sample-data && $(MAKE) gen-all

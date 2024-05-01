@@ -44,21 +44,33 @@ func (g *Gateway) runHTTPD(ctx maestro.Context) error {
 			Now time.Time `json:"now"`
 		}{Now: time.Now()})
 	})
-	public.HandleFunc("GET /gateway/ssh/certificates/host_ca.pub", func(w http.ResponseWriter, r *http.Request) {
+	public.HandleFunc("GET /gateway/ssh/certificates/ca.pub", func(w http.ResponseWriter, r *http.Request) {
 		pubkeyTxt := gossh.MarshalAuthorizedKey(g.casigner.PublicKey())
 		w.Header().Add("Content-Type", "text/plain")
 		w.Header().Add("Content-Length", strconv.Itoa(len(pubkeyTxt)))
 		w.WriteHeader(http.StatusOK)
 		w.Write(pubkeyTxt)
 	})
-	public.HandleFunc("GET /gateway/ssh/certificates/self", func(w http.ResponseWriter, r *http.Request) {
+	public.HandleFunc("GET /gateway/ssh/certificates/hosts/gateway_known_hosts", func(w http.ResponseWriter, req *http.Request) {
+		pubkeyTxt := string(bytes.TrimSpace(gossh.MarshalAuthorizedKey(g.casigner.PublicKey())))
+		buf := bytes.Buffer{}
+		fmt.Fprintf(&buf, "# vandrare gateway / CA fingerprint: %v\n", gossh.FingerprintSHA256(g.casigner.PublicKey()))
+		for _, p := range g.host.cert.ValidPrincipals {
+			fmt.Fprintf(&buf, "@cert-authority %v %v\n", p, pubkeyTxt)
+		}
+		w.Header().Add("Content-Type", "text/plain")
+		w.Header().Add("Content-Length", strconv.Itoa(buf.Len()))
+		w.WriteHeader(http.StatusOK)
+		io.Copy(w, &buf)
+	})
+	public.HandleFunc("GET /gateway/ssh/certificates/self-cert.pub", func(w http.ResponseWriter, r *http.Request) {
 		pubkeyTxt := gossh.MarshalAuthorizedKey(g.host.cert)
 		w.Header().Add("Content-Type", "text/plain")
 		w.Header().Add("Content-Length", strconv.Itoa(len(pubkeyTxt)))
 		w.WriteHeader(http.StatusOK)
 		w.Write(pubkeyTxt)
 	})
-	public.HandleFunc("GET /gateway/ssh/certificates/known_hosts", g.protectHttpFunc(func(w http.ResponseWriter, req *http.Request) {
+	public.HandleFunc("GET /gateway/ssh/certificates/hosts/all_known_hosts", g.protectHttpFunc(func(w http.ResponseWriter, req *http.Request) {
 		pubkeyTxt := string(bytes.TrimSpace(gossh.MarshalAuthorizedKey(g.casigner.PublicKey())))
 		buf := bytes.Buffer{}
 		fmt.Fprintf(&buf, "# vandrare gateway / CA fingerprint: %v\n", gossh.FingerprintSHA256(g.casigner.PublicKey()))
@@ -73,6 +85,8 @@ func (g *Gateway) runHTTPD(ctx maestro.Context) error {
 		w.WriteHeader(http.StatusOK)
 		io.Copy(w, &buf)
 	}))
+
+	public.HandleFunc("POST /gateway/ssh/register-key", g.protectHttpFunc(g.registerKey))
 
 	srv.Handler = public
 	slog.Info("Starting HTTPD server", "addr", srv.Addr)

@@ -19,6 +19,11 @@ keyset.put(pubkey, "-1s", "8766h" /* one year */, "server.example.com")
 keyset.addPermission(pubkey, "expose", "server.example.com:22", "allow")
 
 tokenset := import("tokenset")
+oldTokens := tokenset.listActive("server1")
+// revoke all old tokens for server1
+for tk in oldTokens {
+    tokenset.revoke(tk.ID)
+}
 token := tokenset.issue("server1", "Server 1 - API Token", "8766h")
 echo.printJSON({
     pubkey: pubkey,

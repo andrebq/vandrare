@@ -1,3 +1,5 @@
 LocalEnv.mk
 dist
 localfiles
+make-targets.dot
+make-targets.png

@@ -17,6 +17,7 @@ func main() {
 	err := app.Run(ctx, os.Args)
 	if err != nil {
 		slog.Error("Application failed", "err", err)
+		os.Exit(1)
 		log.Fatal("abort")
 	}
 }

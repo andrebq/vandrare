@@ -6,22 +6,36 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
+	"github.com/andrebq/vandrare/internal/monads"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type (
+	Maybe[T any] struct {
+	}
+
 	tokenOps struct {
 		sqler Ops
 
 		clock txclock
 	}
 
+	TokenInfo struct {
+		Owner       string
+		Description string
+		ExpiresAt   monads.Maybe[time.Time]
+		ID          string
+	}
+
 	TokenOps interface {
 		Valid(ctx context.Context, plaintext []byte) (bool, string, error)
 		Issue(ctx context.Context, user, description string, ttl time.Duration) (plaintext *[32]byte, err error)
+		List(ctx context.Context, user string, onlyActive bool) ([]TokenInfo, error)
+		Remove(ctx context.Context, id string) error
 	}
 
 	errMsg string
@@ -108,4 +122,36 @@ func (t *tokenOps) Issue(ctx context.Context, user, description string, ttl time
 	}
 	plaintext = &idAndSecret
 	return
+}
+
+func (t *tokenOps) List(ctx context.Context, user string, onlyActive bool) ([]TokenInfo, error) {
+	cmd := `select token_id, user, description, expires_at_unixms
+		from vw_token_set where user = ?`
+	if onlyActive {
+		cmd = fmt.Sprintf("%v and is_active", cmd)
+	}
+	rows, err := t.sqler.QueryContext(ctx, cmd, user)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []TokenInfo
+	for rows.Next() {
+		var ti TokenInfo
+		var unixTime sql.NullInt64
+		err := rows.Scan(&ti.ID, &ti.Owner, &ti.Description, &unixTime)
+		if err != nil {
+			return nil, err
+		}
+		if unixTime.Valid {
+			ti.ExpiresAt = monads.Some(time.UnixMilli(unixTime.Int64))
+		}
+		out = append(out, ti)
+	}
+	return out, nil
+}
+
+func (t *tokenOps) Remove(ctx context.Context, id string) error {
+	_, err := t.sqler.ExecContext(ctx, "delete from dt_token_set where token_id = ?", id)
+	return err
 }

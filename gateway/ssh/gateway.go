@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -105,6 +106,12 @@ func NewGateway(keydb *DynKDB, tkdb *TokenDB, adminKey ssh.PublicKey, cakey CAKe
 		adminKey: adminKey,
 	}
 	return g, nil
+}
+
+// SetAdminToken sets the initial admin token if this is the first the token is being set,
+// otherwise nothing happens
+func (g *Gateway) SetAdminToken(ctx context.Context, token *[32]byte, ttl time.Duration) (bool, error) {
+	return false, errors.New("not implemented")
 }
 
 func (g *Gateway) Run(ctx context.Context) error {

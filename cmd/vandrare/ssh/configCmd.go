@@ -19,8 +19,6 @@ func configCmd() *cli.Command {
 	allowHTTP := false
 	var baseURL *url.URL
 	var token string
-	tokenFlag := flagutil.String(&token, "token", nil, envPrefix, "Token to authenticate against the gateway", false)
-	tokenFlag.Hidden = true
 
 	return &cli.Command{
 		Name:        "config",
@@ -28,6 +26,7 @@ func configCmd() *cli.Command {
 		Flags: []cli.Flag{
 			flagutil.String(&gateway, "endpoint", []string{"gt"}, envPrefix, "URL of your gateway HTTP API", true),
 			flagutil.Bool(&allowHTTP, "allow-http", nil, envPrefix, "Allow HTTP connections to the gateway", false),
+			flagutil.String(&token, "token", nil, envPrefix, "Token to authenticate against the gateway", false),
 		},
 		Before: func(ctx *cli.Context) error {
 			var err error
@@ -38,6 +37,7 @@ func configCmd() *cli.Command {
 			if baseURL.Scheme == "http" && !allowHTTP {
 				return errors.New("HTTP access to gateway is not allowed")
 			}
+			println("token: ", token)
 			return nil
 		},
 		Subcommands: []*cli.Command{

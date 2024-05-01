@@ -31,8 +31,9 @@ func gatewayCmd() *cli.Command {
 	adminKeyFile := ""
 	kdbStoreDir := ""
 	caSeed := ""
-	caSeedFlag := flagutil.String(&caSeed, "ca-seed", nil, envPrefix, "32-bytes, hex-encoded, seed used to generate a ed25519 private key, use the environment variable", true)
+	caSeedFlag := flagutil.String(&caSeed, "ca-seed", nil, envPrefix, "32-byte, hex-encoded, seed used to generate a ed25519 private key, use the environment variable", true)
 	caSeedFlag.Hidden = true
+
 	subdomains := cli.StringSlice{}
 	selfDomains := cli.StringSlice{}
 	return &cli.Command{
@@ -82,6 +83,7 @@ func gatewayCmd() *cli.Command {
 
 			gateway.Subdomains = subdomains.Value()
 			ssh.WrapIP(gateway.Subdomains)
+
 			return gateway.Run(ctx.Context)
 		},
 	}

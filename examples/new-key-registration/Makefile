@@ -1,4 +1,4 @@
-include ../sample-data/Commons.mk
+include ../Commons.mk
 
 keygen?=ssh-keygen
 exampleKey?=./server.example.com_ed25519

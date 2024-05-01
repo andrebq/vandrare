@@ -1,3 +1,4 @@
+.PHONY: run
 run:
 	mkdir -p $(keyStoreDir)
 	VANDRARE_GATEWAY_SSH_CA_SEED=$(GATEWAY_SSH_CA_SEED) \

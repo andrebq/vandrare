@@ -26,7 +26,7 @@ func must[T any](val T, err error) T {
 }
 
 var (
-	gatewayKnownHostsPath = must(url.Parse("./gateway/ssh/certificates/known_hosts"))
+	gatewayKnownHostsPath = must(url.Parse("./gateway/ssh/certificates/hosts/all_known_hosts"))
 	clientConfigTemplates = template.Must(template.New("__root__").Parse(`
 {{ define "jumphost" }}
 Host {{ .Alias }}

@@ -40,10 +40,10 @@ func (s *Shell) EvalInteractive(ctx context.Context, stdin io.Reader) error {
 
 	oldVars := []*tengo.Variable{}
 
+	var parseErr error
 	for sc.Scan() {
 		fmt.Fprintln(acc, sc.Text())
-		if s.ValidScript(acc.String()) {
-
+		if parseErr = s.ValidScript(acc.String()); parseErr == nil {
 			sc := tengo.NewScript([]byte(acc.String()))
 			sc.EnableFileImport(false)
 			sc.SetImports(s.modules)
@@ -58,6 +58,9 @@ func (s *Shell) EvalInteractive(ctx context.Context, stdin io.Reader) error {
 			}
 			oldVars = append(oldVars[:0], state.GetAll()...)
 		}
+	}
+	if parseErr != nil {
+		return parseErr
 	}
 	ret := make(map[string]any)
 	for _, v := range oldVars {
@@ -83,10 +86,10 @@ func (s *Shell) Eval(ctx context.Context, code string) (any, error) {
 	return tengo.ToInterface(output.Object()), nil
 }
 
-func (s *Shell) ValidScript(input string) bool {
+func (s *Shell) ValidScript(input string) error {
 	fileSet := parser.NewFileSet()
 	srcFile := fileSet.AddFile("(main)", -1, len(input))
 	p := parser.NewParser(srcFile, []byte(input), nil)
 	_, err := p.ParseFile()
-	return err == nil
+	return err
 }
